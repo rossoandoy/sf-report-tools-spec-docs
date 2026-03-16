@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "references": [
+    { "path": "./shared/types" },
+    { "path": "./shared/utils" },
+    { "path": "./shared/hooks" },
+    { "path": "./packages/schema-explorer" },
+    { "path": "./packages/scenario-manual" },
+    { "path": "./packages/report-chatbot" },
+    { "path": "./packages/goal-seek" },
+    { "path": "./packages/report-generator" }
+  ],
+  "include": []
+}
