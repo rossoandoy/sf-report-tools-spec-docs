@@ -15,7 +15,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - run: pip install pyyaml
       - run: python scripts/validate-schema.py
+      - run: python scripts/validate-scenarios.py
 
   lint-typecheck-test:
     name: Lint, Typecheck & Test

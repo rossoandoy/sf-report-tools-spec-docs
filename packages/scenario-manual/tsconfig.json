@@ -1,14 +1,24 @@
 {
-  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "outDir": "./dist",
-    "rootDir": "./src",
-    "composite": true
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "paths": {
+      "@sf-report-tools/types": ["../../shared/types/src/index.ts"],
+      "@sf-report-tools/utils": ["../../shared/utils/src/index.ts"]
+    }
   },
-  "references": [
-    { "path": "../../shared/types" },
-    { "path": "../../shared/utils" },
-    { "path": "../../shared/hooks" }
-  ],
   "include": ["src"]
 }
