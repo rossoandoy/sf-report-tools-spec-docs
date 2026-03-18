@@ -7,6 +7,7 @@
     { "path": "./shared/types" },
     { "path": "./shared/utils" },
     { "path": "./shared/hooks" },
+    { "path": "./packages/portal" },
     { "path": "./packages/schema-explorer" },
     { "path": "./packages/scenario-manual" },
     { "path": "./packages/report-chatbot" },

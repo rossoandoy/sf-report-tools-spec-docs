@@ -7,11 +7,20 @@ Salesforceレポート・ダッシュボードの**ユーザー駆動型導入�
 
 | Phase | パッケージ | 概要 | 状態 |
 |-------|-----------|------|------|
-| 0 | `schema-explorer` | データモデル可視化ツール — ERD表示、検索、リレーション探索 | 未着手 |
-| 1 | `scenario-manual` | シナリオ型マニュアル — 業務目的からレポート設定手順を提示 | 未着手 |
+| 0 | `schema-explorer` | データモデル可視化ツール — ERD表示、検索、リレーション探索 | 実装済み |
+| 1 | `scenario-manual` | シナリオ型マニュアル — 業務目的からレポート設定手順を提示 | 実装済み |
 | 2 | `report-chatbot` | AI Q&A Bot — 自然言語でレポートの質問に回答（Slack連携） | 未着手 |
-| 3 | `goal-seek` | ゴールシーク型設定支援 — 「何を知りたいか」からレポート設定を逆算 | 未着手 |
+| 3 | `goal-seek` | ゴールシーク型設定支援 — 「何を知りたいか」からレポート設定を逆算 | 実装済み |
 | 4 | `report-generator` | レポート自動生成 — メタデータAPIでレポートを直接作成 | 未着手 |
+
+## デプロイ
+
+| ツール | URL |
+|-------|-----|
+| ポータル | `/` |
+| データモデルビューア | `/schema-explorer/` |
+| 業務シナリオマニュアル | `/scenario-manual/` |
+| ゴールシーク | `/goal-seek/` |
 
 ## ディレクトリ構成
 
@@ -31,6 +40,7 @@ sf-report-tools-spec-docs/
 │   ├── adr/                           # Architecture Decision Records
 │   └── specs/                         # Phase別機能仕様書（SPEC-0000〜0004）
 ├── packages/
+│   ├── portal/                        # ポータル（ツール一覧）
 │   ├── schema-explorer/               # Phase 0
 │   ├── scenario-manual/               # Phase 1
 │   ├── report-chatbot/                # Phase 2
@@ -88,6 +98,9 @@ pnpm test
 
 # スキーマ整合性チェック
 pnpm validate-schema
+
+# サイト全体ビルド
+pnpm build:site
 ```
 
 ## 共有パッケージ

@@ -1,0 +1,1328 @@
+version: "1.0"
+last_updated: "2026-03-17"
+
+scenarios:
+  # ===== BIL: 請求・決済 (8 scenarios) =====
+
+  - id: "BIL-001"
+    domain: "billing"
+    title: "生徒別未収金一覧"
+    description: "請求済みだが入金が完了していない生徒ごとの未収金額を一覧表示する"
+    user_story: "校舎管理者として、月末に未収金のある生徒を確認し、保護者に連絡したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Invoice__c"
+      related:
+        - object: "MANAERP__Payment__c"
+          relation: "Lookup (Payment → Invoice)"
+        - object: "Contact"
+          relation: "Lookup (Invoice → Contact via Student Name)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Invoice__c"
+        related: "MANAERP__Payment__c"
+        with_or_without: "with_or_without"
+      grouping: ["Contact.Name"]
+      summary_formula: "SUM(MANAERP__Invoice__c.MANAERP__Outstanding_Balance__c)"
+      filters:
+        - field: "MANAERP__Invoice__c.MANAERP__Outstanding_Balance__c"
+          operator: "greater_than"
+          value: "0"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "カスタムレポートタイプを作成せずに標準レポートタイプで試みて、Payment項目が表示されない"
+      - "with_or_without の設定を忘れて、入金済みレコードのみ表示される"
+      - "Outstanding Balance項目を使わず、手動で請求額-入金額を計算しようとする"
+    concept_explanations:
+      - concept: "custom_report_type"
+        when_needed: "InvoiceとPaymentのように、Lookupで繋がる2つのオブジェクトのデータを1つのレポートで見たい場合"
+        analogy: "Excelで2つのシートをVLOOKUPで結合するイメージ。SFではレポートタイプが結合の設計図になる"
+        vs_alternative:
+          name: "joined_report"
+          difference: "カスタムレポートタイプは「縦の結合」（リレーションで繋がるデータを1枚に）。結合レポートは「横の比較」（独立したデータを並べて比較）"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "設定 → レポートタイプ → 新規。主オブジェクト: Invoice、関連オブジェクト: Payment（with or without）を設定"
+        screenshot_hint: "report-type-builder"
+      - step: 2
+        action: "レポート新規作成"
+        detail: "レポートタブ → 新規レポート → 作成したカスタムレポートタイプ「Invoice with/without Payment」を選択"
+        screenshot_hint: "report-builder-select-type"
+      - step: 3
+        action: "表示列の設定"
+        detail: "Student Name (Contact)、Invoice名、Outstanding Balance、Due Date、Paid Dateを列に追加"
+        screenshot_hint: "report-columns"
+      - step: 4
+        action: "フィルタ設定"
+        detail: "Outstanding Balance > 0 のフィルタを追加して未収金があるレコードのみに絞り込む"
+        screenshot_hint: "report-filter"
+      - step: 5
+        action: "グループ化と集計"
+        detail: "生徒名（Contact.Name）でグループ化し、Outstanding Balanceの合計を表示"
+        screenshot_hint: "report-grouping"
+    related_scenarios: ["BIL-002", "BIL-003", "BIL-005"]
+    tags: ["未収金", "請求", "入金", "カスタムレポートタイプ", "校舎管理"]
+
+  - id: "BIL-002"
+    domain: "billing"
+    title: "月別請求・入金サマリ"
+    description: "月単位の請求総額と入金総額を集計し、月次推移を把握する"
+    user_story: "経理担当として、月ごとの請求額と入金額の推移を確認し、キャッシュフローを管理したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Invoice__c"
+      related:
+        - object: "MANAERP__Payment__c"
+          relation: "Lookup (Payment → Invoice)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Invoice__c"
+        related: "MANAERP__Payment__c"
+        with_or_without: "with_or_without"
+      grouping: ["MANAERP__Invoice__c.CreatedDate"]
+      summary_formula: "SUM(MANAERP__Invoice__c.MANAERP__Subtotal__c)"
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "CreatedDateとDue Dateを混同し、意図しない月にレコードが集計される"
+      - "グループ化の単位を「日」のまま変更せず、月次サマリにならない"
+    concept_explanations:
+      - concept: "report_formula"
+        when_needed: "入金率（入金額÷請求額×100）を算出したい場合"
+        analogy: "Excelの計算列を追加するイメージ。既存項目を組み合わせてレポート上で新しい数値を作れる"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの選択"
+        detail: "BIL-001で作成した「Invoice with/without Payment」レポートタイプを使用"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Invoice名、Subtotal、Allocated Payments、Outstanding Balanceを列に追加"
+      - step: 3
+        action: "日付グループ化"
+        detail: "CreatedDateを行グループに追加し、グループ単位を「年月」に変更"
+        screenshot_hint: "report-date-grouping"
+      - step: 4
+        action: "集計の確認"
+        detail: "各月グループにSubtotal合計とAllocated Payments合計が表示されることを確認"
+      - step: 5
+        action: "チャート追加"
+        detail: "折れ線グラフを追加して月別推移を可視化"
+        screenshot_hint: "report-chart"
+    related_scenarios: ["BIL-001", "BIL-004"]
+    tags: ["請求", "入金", "月次集計", "キャッシュフロー", "経理"]
+
+  - id: "BIL-003"
+    domain: "billing"
+    title: "支払方法別入金一覧"
+    description: "口座振替・クレジットカード等の支払方法ごとに入金状況を集計する"
+    user_story: "経理担当として、支払方法ごとの入金件数と金額を確認し、決済手段の利用状況を把握したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Payment__c"
+      related: []
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Payment__c.MANAERP__Payment_Method__c"]
+      filters:
+        - field: "MANAERP__Payment__c.MANAERP__Status__c"
+          operator: "equals"
+          value: "Completed"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "StatusフィルタなしでPending含む全レコードが集計される"
+      - "Payment Methodがテキスト型のため値のゆらぎに注意"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "レポートタブ → 新規レポート → Payment標準レポートタイプを選択"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Status = Completed のフィルタを追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Payment Methodでグループ化し、レコード数とAmount合計を表示"
+      - step: 4
+        action: "チャート追加"
+        detail: "円グラフを追加して支払方法別の構成比を可視化"
+    related_scenarios: ["BIL-001", "BIL-004"]
+    tags: ["入金", "支払方法", "決済", "集計"]
+
+  - id: "BIL-004"
+    domain: "billing"
+    title: "校舎別×月別 売上マトリクス"
+    description: "校舎（Account）別・月別の売上額をマトリクス形式で一覧表示する"
+    user_story: "経営層として、各校舎の月別売上推移を一目で比較し、業績の良い校舎と改善が必要な校舎を把握したい"
+    difficulty: "advanced"
+    objects:
+      primary: "MANAERP__Invoice__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Invoice → Contact via Student Name)"
+        - object: "Account"
+          relation: "Lookup (Contact → Account)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Invoice__c"
+        related: "Contact"
+        with_or_without: "with"
+      grouping: ["Account.Name", "MANAERP__Invoice__c.CreatedDate"]
+      filters: []
+      bucket_fields: []
+      cross_filter: true
+    pitfalls:
+      - "マトリクス形式にするには行グループと列グループの両方が必要"
+      - "ContactからAccountへの参照が間接的なため、レポートタイプの設計に注意"
+      - "校舎数が多い場合、列の表示が見づらくなる"
+    concept_explanations:
+      - concept: "cross_filter"
+        when_needed: "行（校舎）×列（月）のマトリクス表示が必要な場合"
+        analogy: "Excelのピボットテーブルの列ラベルに相当。行グループと列グループの交差で値を見る"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主オブジェクト: Invoice、関連: Contact (with)。ContactからAccount名を参照できるようにする"
+      - step: 2
+        action: "レポート形式の変更"
+        detail: "レポート形式を「マトリクス」に変更"
+        screenshot_hint: "report-matrix-format"
+      - step: 3
+        action: "行グループ設定"
+        detail: "Account Name（校舎名）を行グループに追加"
+      - step: 4
+        action: "列グループ設定"
+        detail: "Invoice.CreatedDateを列グループに追加し、単位を「年月」に設定"
+      - step: 5
+        action: "集計値の設定"
+        detail: "Subtotal合計をマトリクスの交差セルに表示"
+    related_scenarios: ["BIL-002", "BIL-006"]
+    tags: ["売上", "校舎別", "月次", "マトリクス", "クロス集計", "経営"]
+
+  - id: "BIL-005"
+    domain: "billing"
+    title: "請求明細付きInvoice一覧"
+    description: "Invoiceとその明細（Invoice Bill Item）を紐付けて、請求内訳を確認する"
+    user_story: "経理担当として、各請求書の内訳（商品名・金額・税率）を一覧で確認したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Invoice__c"
+      related:
+        - object: "MANAERP__Invoice_Bill_Item__c"
+          relation: "MasterDetail (Invoice Bill Item → Invoice)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Invoice__c"
+        related: "MANAERP__Invoice_Bill_Item__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__Invoice__c.Name"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Invoice Bill ItemはMasterDetail関係なので「with」のみ選択可能"
+      - "明細の金額合計がInvoiceのSubtotalと一致するか確認が必要"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Invoice、関連: Invoice Bill Item (MasterDetail、with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Invoice名、Invoice Bill Item.Description、Amount、Tax Percentageを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Invoice名でグループ化し、明細をInvoice単位でまとめる"
+      - step: 4
+        action: "集計追加"
+        detail: "Amount合計を表示し、Invoice.Subtotalとの整合性を確認"
+    related_scenarios: ["BIL-001", "BIL-006"]
+    tags: ["請求", "明細", "請求書", "Invoice"]
+
+  - id: "BIL-006"
+    domain: "billing"
+    title: "生徒別注文・受講商品一覧"
+    description: "Order GroupとOrder Group Productから生徒ごとの注文内容と受講商品を確認する"
+    user_story: "校舎管理者として、各生徒がどの商品を注文しているか、注文のステータスを確認したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Order_Group__c"
+      related:
+        - object: "MANAERP__Order_Group_Product__c"
+          relation: "MasterDetail (Order Group Product → Order Group)"
+        - object: "Contact"
+          relation: "Lookup (Order Group → Contact via Student)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Order_Group__c"
+        related: "MANAERP__Order_Group_Product__c"
+        with_or_without: "with"
+      grouping: ["Contact.Name"]
+      filters:
+        - field: "MANAERP__Order_Group__c.MANAERP__Type__c"
+          operator: "not_equal"
+          value: "Void"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Voidステータスの注文を除外しないと無効な注文も含まれる"
+      - "Order GroupのStudentフィールドからContactへの参照パスを正しく設定する必要がある"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Order Group、関連: Order Group Product (with)を設定"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Type ≠ Void のフィルタを追加"
+      - step: 3
+        action: "表示列の設定"
+        detail: "Student名、Order Group名、Type、Order Group Product詳細を列に追加"
+      - step: 4
+        action: "グループ化"
+        detail: "Student名でグループ化し、生徒単位で注文をまとめる"
+    related_scenarios: ["BIL-005", "ENR-001"]
+    tags: ["注文", "商品", "生徒", "Order Group"]
+
+  - id: "BIL-007"
+    domain: "billing"
+    title: "返金処理一覧"
+    description: "返金（Refund）レコードのステータス・金額・方法を一覧表示する"
+    user_story: "経理担当として、返金処理の進捗と金額を確認し、未処理の返金がないか把握したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Refund__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Refund → Contact via Student Name)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Refund__c.MANAERP__Status__c"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Refund Amountは返金予定額、Amount Refundedは実際の返金額であることを区別する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "レポートタブ → 新規レポート → Refund標準レポートタイプを選択"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Student Name、Refund Amount、Amount Refunded、Status、Refund Method、Refund Dateを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Statusでグループ化し、処理状態ごとの件数と金額を確認"
+    related_scenarios: ["BIL-001", "BIL-008"]
+    tags: ["返金", "Refund", "経理"]
+
+  - id: "BIL-008"
+    domain: "billing"
+    title: "Credit Note別残高一覧"
+    description: "Credit Note（クレジットノート）ごとの発行額、返金済み額、残高を確認する"
+    user_story: "経理担当として、各Credit Noteの残高を把握し、未使用のクレジット残高を管理したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Credit_Note__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Credit Note → Contact via Student Name)"
+        - object: "MANAERP__Refund__c"
+          relation: "Lookup (Credit Note → Refund via Latest Refund)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Credit_Note__c"
+        related: "MANAERP__Refund__c"
+        with_or_without: "with_or_without"
+      grouping: ["Contact.Name"]
+      summary_formula: "MANAERP__Credit_Note__c.MANAERP__Subtotal__c - MANAERP__Credit_Note__c.MANAERP__Amount_Refunded__c"
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "SubtotalとAmount Refundedの差分がクレジット残高になることを理解する"
+      - "Credit Note TypeによってRefund対象が異なる場合がある"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Credit Note、関連: Refund (with or without)。Refundがない場合も表示"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Student Name、Credit Note Type、Subtotal、Amount Refunded、Refund Statusを列に追加"
+      - step: 3
+        action: "集計数式の追加"
+        detail: "Subtotal - Amount Refunded でクレジット残高を計算する列を追加"
+      - step: 4
+        action: "グループ化"
+        detail: "Student名でグループ化し、生徒別のクレジット残高合計を確認"
+    related_scenarios: ["BIL-007", "BIL-001"]
+    tags: ["クレジットノート", "残高", "返金", "経理"]
+
+  # ===== LES: 授業・レッスン (6 scenarios) =====
+
+  - id: "LES-001"
+    domain: "lesson"
+    title: "日別授業スケジュール一覧"
+    description: "Lesson Scheduleから日別の授業スケジュールを一覧表示する"
+    user_story: "校舎管理者として、今日の授業スケジュールを確認し、教室や講師の割り当てに問題がないか確認したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Lesson_Schedule__c"
+      related:
+        - object: "MANAERP__Class__c"
+          relation: "Lookup (Lesson Schedule → Class)"
+        - object: "Account"
+          relation: "Lookup (Lesson Schedule → Account via Location)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["Account.Name", "MANAERP__Lesson_Schedule__c.MANAERP__Day__c"]
+      filters:
+        - field: "MANAERP__Lesson_Schedule__c.MANAERP__End_Date__c"
+          operator: "greater_or_equal"
+          value: "TODAY"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "LessonとLesson Scheduleの違いを理解する（Scheduleは定義、Lessonは実施）"
+      - "End Dateフィルタで終了済みスケジュールを適切に除外する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "レポートタブ → 新規レポート → Lesson Schedule標準レポートタイプを選択"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Lesson Name、Day、Class、Location、Teaching Mediumを列に追加"
+      - step: 3
+        action: "フィルタ設定"
+        detail: "End Date >= TODAY で現在有効なスケジュールのみに絞り込み"
+      - step: 4
+        action: "グループ化"
+        detail: "Location（校舎）→ Day（曜日）の二段グループ化"
+    related_scenarios: ["LES-002", "LES-003"]
+    tags: ["授業", "スケジュール", "校舎", "日別"]
+
+  - id: "LES-002"
+    domain: "lesson"
+    title: "生徒別出欠状況一覧"
+    description: "Student SessionsとLessonから生徒ごとの出欠状況を集計する"
+    user_story: "校舎管理者として、各生徒の出欠率を把握し、欠席が多い生徒への対応を検討したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Student_Sessions__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Student Sessions → Contact via Student)"
+        - object: "MANAERP__Lesson__c"
+          relation: "Lookup (Student Sessions → Lesson)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Student_Sessions__c"
+        related: "Contact"
+        with_or_without: "with"
+      grouping: ["Contact.Name", "MANAERP__Student_Sessions__c.MANAERP__Attendance_Status__c"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Attendance Statusの値（Present, Absent, Late等）を事前に確認する"
+      - "Student Sessionsは個々の授業への出欠記録であり、大量データになりうる"
+    concept_explanations:
+      - concept: "bucket_field"
+        when_needed: "Attendance Statusを「出席」「欠席」「遅刻」等にグルーピングしたい場合"
+        analogy: "Excelのピボットテーブルの行ラベルに分類条件を設定するイメージ"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Student Sessions、関連: Contact (with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Student名、Lesson Date、Attendance Status、Attendance Reasonを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Student名 → Attendance Statusの二段グループ化で出欠状況をカテゴリ別に集計"
+      - step: 4
+        action: "出欠率の確認"
+        detail: "各生徒グループのレコード数から出席率を概算（詳細はレポート数式で算出可能）"
+    related_scenarios: ["LES-001", "LES-003", "ENR-003"]
+    tags: ["出欠", "生徒", "出席率", "授業"]
+
+  - id: "LES-003"
+    domain: "lesson"
+    title: "講師別担当授業一覧"
+    description: "Lesson TeacherとLessonから講師ごとの担当授業数と授業時間を集計する"
+    user_story: "校舎管理者として、各講師の担当授業数と時間を把握し、負荷の偏りがないか確認したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Lesson_Teacher__c"
+      related:
+        - object: "MANAERP__Lesson__c"
+          relation: "MasterDetail (Lesson Teacher → Lesson)"
+        - object: "Contact"
+          relation: "Lookup (Lesson Teacher → Contact via Teacher Name)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Lesson_Teacher__c"
+        related: "MANAERP__Lesson__c"
+        with_or_without: "with"
+      grouping: ["Contact.Name"]
+      filters:
+        - field: "MANAERP__Lesson__c.MANAERP__Lesson_Date__c"
+          operator: "equals"
+          value: "THIS_MONTH"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Lesson TeacherはLessonとMasterDetail関係。Lessonが削除されると一緒に削除される"
+      - "同じ授業に複数講師がアサインされている場合、授業がダブルカウントされる"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Lesson Teacher、関連: Lesson (MasterDetail、with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Teacher Name、Lesson Date、Lesson Time、Lesson Typeを列に追加"
+      - step: 3
+        action: "フィルタ設定"
+        detail: "Lesson Date = THIS MONTH で今月の授業に絞り込み"
+      - step: 4
+        action: "グループ化と集計"
+        detail: "Teacher Name（講師名）でグループ化し、授業数（レコード数）を確認"
+    related_scenarios: ["LES-001", "LES-004", "STF-001"]
+    tags: ["講師", "授業", "担当", "負荷"]
+
+  - id: "LES-004"
+    domain: "lesson"
+    title: "授業レポート提出状況"
+    description: "Lesson Reportの提出状況（ステータス別）を確認する"
+    user_story: "校舎管理者として、講師の授業レポート提出状況を確認し、未提出のレポートをフォローしたい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Lesson_Report__c"
+      related:
+        - object: "MANAERP__Lesson__c"
+          relation: "MasterDetail (Lesson Report → Lesson)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Lesson_Report__c.MANAERP__Lesson_Report_Status__c"]
+      filters:
+        - field: "MANAERP__Lesson_Report__c.MANAERP__Lesson_Date__c"
+          operator: "equals"
+          value: "THIS_MONTH"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Lesson Report StatusのPicklist値を事前に確認する"
+      - "Lesson DateはLesson ReportとLessonの両方にあるので正しい方を参照する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "レポートタブ → 新規レポート → Lesson Report標準レポートタイプを選択"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Lesson名、Lesson Date、Report Status、Contentを列に追加"
+      - step: 3
+        action: "フィルタ設定"
+        detail: "Lesson Date = THIS MONTH で今月の授業レポートに絞り込み"
+      - step: 4
+        action: "グループ化"
+        detail: "Report Statusでグループ化し、提出済み・未提出の件数を確認"
+    related_scenarios: ["LES-003", "LES-005"]
+    tags: ["授業レポート", "提出状況", "講師"]
+
+  - id: "LES-005"
+    domain: "lesson"
+    title: "体験授業申込状況一覧"
+    description: "Trial Lessonの申込状況とステータスを確認する"
+    user_story: "校舎管理者として、体験授業の申込状況を把握し、入塾に繋げるフォローを行いたい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Trial_Lesson__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Trial Lesson → Contact via Student)"
+        - object: "Account"
+          relation: "Lookup (Trial Lesson → Account via Location)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Trial_Lesson__c.MANAERP__Status__c"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Trial Lessonの Status 値を事前に確認し、フローを理解する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "レポートタブ → 新規レポート → Trial Lesson標準レポートタイプを選択"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Student名、Location、Start Date、End Date、Statusを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Statusでグループ化し、申込段階ごとの件数を確認"
+    related_scenarios: ["LES-001", "ENR-001"]
+    tags: ["体験授業", "申込", "入塾"]
+
+  - id: "LES-006"
+    domain: "lesson"
+    title: "科目別×校舎別 受講者数マトリクス"
+    description: "コースマスタと校舎を軸に受講者数をマトリクス表示する"
+    user_story: "経営層として、各校舎でどの科目が人気かを把握し、講師配置やカリキュラム計画に活かしたい"
+    difficulty: "advanced"
+    objects:
+      primary: "MANAERP__Class_Member__c"
+      related:
+        - object: "MANAERP__Location_Course__c"
+          relation: "Lookup (Class Member → Location Course)"
+        - object: "MANAERP__Class__c"
+          relation: "Lookup (Class Member → Class)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Class_Member__c"
+        related: "MANAERP__Location_Course__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__Location_Course__c.Name", "Account.Name"]
+      filters: []
+      bucket_fields: []
+      cross_filter: true
+    pitfalls:
+      - "Class MemberはLesson AllocationとMasterDetail関係のため、Lesson Allocationが必要"
+      - "マトリクス形式では行グループ（科目）と列グループ（校舎）を正しく設定する"
+    concept_explanations:
+      - concept: "cross_filter"
+        when_needed: "科目（行）×校舎（列）のマトリクス表示が必要な場合"
+        analogy: "Excelのピボットテーブルで行に科目、列に校舎を設定するイメージ"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Class Member、関連: Location Course (with)を設定"
+      - step: 2
+        action: "レポート形式をマトリクスに変更"
+        detail: "レポート形式を「マトリクス」に設定"
+      - step: 3
+        action: "行グループ設定"
+        detail: "Location Course名（科目）を行グループに追加"
+      - step: 4
+        action: "列グループ設定"
+        detail: "Location名（校舎）を列グループに追加"
+      - step: 5
+        action: "集計確認"
+        detail: "交差セルにレコード数（受講者数）が表示されることを確認"
+    related_scenarios: ["BIL-004", "LES-001"]
+    tags: ["科目", "校舎", "受講者数", "マトリクス", "クロス集計"]
+
+  # ===== EXM: 成績・試験 (5 scenarios) =====
+
+  - id: "EXM-001"
+    domain: "exam"
+    title: "試験結果一覧（生徒別）"
+    description: "Student ExamとExamから生徒ごとの試験結果を一覧表示する"
+    user_story: "講師として、各生徒の試験結果を確認し、成績の傾向を把握したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Student_Exam__c"
+      related:
+        - object: "MANAERP__Exam__c"
+          relation: "Lookup (Student Exam → Exam)"
+        - object: "Contact"
+          relation: "Lookup (Student Exam → Contact via Student)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Student_Exam__c"
+        related: "MANAERP__Exam__c"
+        with_or_without: "with"
+      grouping: ["Contact.Name"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Student Examは試験への受験記録、Score Entryは科目ごとの点数。混同しない"
+      - "Student Examの多数のフィールド（50以上）から必要な項目を選ぶ"
+    concept_explanations:
+      - concept: "custom_report_type"
+        when_needed: "Student ExamとExamのデータを1つのレポートで見たい場合"
+        analogy: "試験の情報（試験名、日付）と生徒の受験情報（得点、合否）を組み合わせる"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Student Exam、関連: Exam (with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Student名、Exam Name、Final Result、Decision Dateを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Student名でグループ化し、生徒ごとの試験結果をまとめる"
+    related_scenarios: ["EXM-002", "EXM-003"]
+    tags: ["試験", "成績", "生徒", "試験結果"]
+
+  - id: "EXM-002"
+    domain: "exam"
+    title: "科目別得点分布"
+    description: "Score EntryとExam Subjectsから科目ごとの得点分布を集計する"
+    user_story: "講師として、科目ごとの得点分布を確認し、指導の改善ポイントを見つけたい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Score_Entry__c"
+      related:
+        - object: "MANAERP__Exam_Subjects__c"
+          relation: "Lookup (Score Entry → Exam Subjects)"
+        - object: "MANAERP__Student_Exam__c"
+          relation: "MasterDetail (Score Entry → Student Exam)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Score_Entry__c"
+        related: "MANAERP__Student_Exam__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__Exam_Subjects__c.Name"]
+      filters:
+        - field: "MANAERP__Score_Entry__c.MANAERP__Is_Taken__c"
+          operator: "equals"
+          value: "true"
+      bucket_fields: ["MANAERP__Score_Entry__c.MANAERP__Score__c"]
+      cross_filter: false
+    pitfalls:
+      - "Is Takenがfalseの（未受験）レコードを除外する"
+      - "Score Entryの得点をバケット行で分類する場合、得点範囲を適切に設定する"
+    concept_explanations:
+      - concept: "bucket_field"
+        when_needed: "得点を「80点以上」「60-79点」「60点未満」等に分類したい場合"
+        analogy: "得点の数値を成績ランクに変換するイメージ"
+        vs_alternative:
+          name: "report_formula"
+          difference: "バケット行は分類してグループ化。レポート数式は新しい計算値を追加"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Score Entry、関連: Student Exam (MasterDetail、with)を設定"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Is Taken = true のフィルタで受験者のみに絞り込み"
+      - step: 3
+        action: "バケット行の作成"
+        detail: "Scoreをバケット行に追加し、「80点以上」「60-79点」「60点未満」等の範囲を設定"
+        screenshot_hint: "report-bucket-field"
+      - step: 4
+        action: "グループ化"
+        detail: "Exam Subjects名（科目）→ バケット行の二段グループ化"
+    related_scenarios: ["EXM-001", "EXM-003"]
+    tags: ["科目", "得点", "分布", "バケット行", "成績"]
+
+  - id: "EXM-003"
+    domain: "exam"
+    title: "試験種別別の平均点推移"
+    description: "Master Examの種別ごとに、試験実施回ごとの平均点推移を確認する"
+    user_story: "教務責任者として、定期テストや模試の平均点推移を確認し、カリキュラムの効果を評価したい"
+    difficulty: "advanced"
+    objects:
+      primary: "MANAERP__Score_Entry__c"
+      related:
+        - object: "MANAERP__Student_Exam__c"
+          relation: "MasterDetail (Score Entry → Student Exam)"
+        - object: "MANAERP__Exam__c"
+          relation: "Lookup (Student Exam → Exam)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Score_Entry__c"
+        related: "MANAERP__Student_Exam__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__Exam__c.MANAERP__Master_Exam_Type__c", "MANAERP__Exam__c.Name"]
+      summary_formula: "AVG(MANAERP__Score_Entry__c.MANAERP__Score__c)"
+      filters:
+        - field: "MANAERP__Score_Entry__c.MANAERP__Is_Taken__c"
+          operator: "equals"
+          value: "true"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "複数オブジェクトを経由するため、レポートタイプの設計が複雑"
+      - "平均点にはAVG集計を使用し、合計÷件数の手動計算は不要"
+    concept_explanations:
+      - concept: "report_formula"
+        when_needed: "前回の試験との平均点の増減を計算したい場合"
+        analogy: "Excelで前のセルとの差分を計算する数式。PREVGROUPVALで前のグループの値と比較できる"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Score Entry、関連: Student Exam (with)。Student ExamからExamへの参照も追加"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Is Taken = true で受験者のみに絞り込み"
+      - step: 3
+        action: "グループ化"
+        detail: "Master Exam Type（試験種別）→ Exam Name（試験名）の二段グループ化"
+      - step: 4
+        action: "集計設定"
+        detail: "Score の AVG（平均）集計を追加"
+      - step: 5
+        action: "チャート追加"
+        detail: "折れ線グラフで試験ごとの平均点推移を可視化"
+    related_scenarios: ["EXM-001", "EXM-002", "EXM-004"]
+    tags: ["試験", "平均点", "推移", "定期テスト", "模試"]
+
+  - id: "EXM-004"
+    domain: "exam"
+    title: "志望校別合格状況一覧"
+    description: "Student ExamとSchool情報から志望校ごとの合格・不合格状況を確認する"
+    user_story: "校舎管理者として、生徒の志望校別の合格状況を把握し、進路指導の成果を確認したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Student_Exam__c"
+      related:
+        - object: "MANAERP__School__c"
+          relation: "Lookup (Student Exam → School)"
+        - object: "Contact"
+          relation: "Lookup (Student Exam → Contact via Student)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Student_Exam__c"
+        related: "MANAERP__School__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__School__c.Name", "MANAERP__Student_Exam__c.MANAERP__Final_Result__c"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Final ResultとInitial Resultの違い（一次・最終結果）を理解する"
+      - "School参照がない場合はデータが表示されない（with設定のため）"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Student Exam、関連: School (with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Student名、School名、Final Result、Initial Result、Decision Dateを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "School名（志望校）→ Final Result（合否）の二段グループ化"
+      - step: 4
+        action: "集計確認"
+        detail: "各志望校の合格者数・不合格者数を確認"
+    related_scenarios: ["EXM-001", "EXM-005"]
+    tags: ["志望校", "合格", "進路", "試験結果"]
+
+  - id: "EXM-005"
+    domain: "exam"
+    title: "4月 vs 7月 成績比較"
+    description: "同一生徒の異なる時期の試験成績を横並びで比較する"
+    user_story: "講師として、4月と7月の成績を比較して各生徒の成長を把握したい"
+    difficulty: "advanced"
+    objects:
+      primary: "MANAERP__Score_Entry__c"
+      related:
+        - object: "MANAERP__Student_Exam__c"
+          relation: "MasterDetail (Score Entry → Student Exam)"
+    sf_features:
+      report_type: "joined"
+      grouping: ["Contact.Name"]
+      filters:
+        - field: "MANAERP__Score_Entry__c.MANAERP__Is_Taken__c"
+          operator: "equals"
+          value: "true"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "結合レポートでは各ブロックが独立したレポートとして動作する"
+      - "同一生徒を結合するため、共通のグループ化キー（Student名）が必要"
+      - "ブロック間のデータの整合性は自動では保証されない"
+    concept_explanations:
+      - concept: "joined_report"
+        when_needed: "異なる時期の試験データを横に並べて比較したい場合"
+        analogy: "Excelで複数シートを横に並べて見比べるイメージ。各ブロックが1つのシートに相当"
+        vs_alternative:
+          name: "custom_report_type"
+          difference: "結合レポートは異なるフィルタのデータを横並び比較。カスタムレポートタイプは関連データを縦に結合"
+    steps:
+      - step: 1
+        action: "結合レポートの作成"
+        detail: "レポートタブ → 新規レポート → 「結合レポート」を選択"
+        screenshot_hint: "joined-report-create"
+      - step: 2
+        action: "ブロック1の設定"
+        detail: "Score Entry (Student Exam付き) レポートタイプを使用し、4月の試験でフィルタ"
+      - step: 3
+        action: "ブロック2の設定"
+        detail: "同じレポートタイプを使用し、7月の試験でフィルタ"
+      - step: 4
+        action: "共通グループ化"
+        detail: "両ブロックをStudent名でグループ化し、同一生徒のデータを横並びに表示"
+      - step: 5
+        action: "比較確認"
+        detail: "各生徒の4月と7月の成績を並べて成長度合いを確認"
+    related_scenarios: ["EXM-001", "EXM-003"]
+    tags: ["成績比較", "結合レポート", "時系列", "成長"]
+
+  # ===== STF: スタッフ勤怠 (4 scenarios) =====
+
+  - id: "STF-001"
+    domain: "staff"
+    title: "講師別月次勤務時間集計"
+    description: "TimesheetとTimesheet Lesson Entryから講師ごとの月次勤務時間を集計する"
+    user_story: "校舎管理者として、各講師の月次勤務時間を把握し、給与計算や労務管理に活用したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Timesheet__c"
+      related:
+        - object: "MANAERP__Timesheet_Lesson_Entry__c"
+          relation: "MasterDetail (Timesheet Lesson Entry → Timesheet)"
+        - object: "Contact"
+          relation: "Lookup (Timesheet → Contact via Staff)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Timesheet__c"
+        related: "MANAERP__Timesheet_Lesson_Entry__c"
+        with_or_without: "with"
+      grouping: ["Contact.Name"]
+      summary_formula: "SUM(MANAERP__Timesheet__c.MANAERP__Total_Lesson_Time__c)"
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Total Lesson TimeはSummary項目（ロールアップ集計）なので、Timesheet単位の値"
+      - "Timesheet Lesson Entryの個別時間とTimesheetの合計時間を混同しない"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Timesheet、関連: Timesheet Lesson Entry (with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Staff名、Total Lesson Time、Number Of Lessons、Lesson Entry詳細を列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Staff名（講師名）でグループ化し、合計勤務時間を集計"
+      - step: 4
+        action: "集計確認"
+        detail: "Total Lesson Timeの合計と授業数を講師別に確認"
+    related_scenarios: ["STF-002", "LES-003"]
+    tags: ["勤怠", "講師", "勤務時間", "給与"]
+
+  - id: "STF-002"
+    domain: "staff"
+    title: "講師別給与レート一覧"
+    description: "Payrate MasterとLesson TeacherのPayrate設定から講師の給与レートを一覧表示する"
+    user_story: "人事担当として、各講師の給与レート設定を確認し、適切なレートが設定されているか確認したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Lesson_Teacher__c"
+      related:
+        - object: "MANAERP__Payrate_Master__c"
+          relation: "Lookup (Lesson Teacher → Payrate Master)"
+        - object: "Contact"
+          relation: "Lookup (Lesson Teacher → Contact via Teacher Name)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["Contact.Name"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Payrate Masterの Default Value は基本給。Multiplier Effectで倍率が適用される"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "Lesson Teacher標準レポートタイプを選択（Payrate Master参照を含む）"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Teacher Name、Payrate Master名、Default Value、Multiplier Effectを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Teacher名でグループ化し、講師ごとのレート設定を確認"
+    related_scenarios: ["STF-001", "STF-003"]
+    tags: ["給与", "レート", "講師", "Payrate"]
+
+  - id: "STF-003"
+    domain: "staff"
+    title: "有給休暇残日数一覧"
+    description: "Time Off Balanceから各スタッフの有給休暇の残日数を一覧表示する"
+    user_story: "人事担当として、各スタッフの有給残日数を確認し、計画的な消化を促したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Time_Off_Balance__c"
+      related:
+        - object: "Contact"
+          relation: "MasterDetail (Time Off Balance → Contact via Staff)"
+    sf_features:
+      report_type: "standard"
+      grouping: []
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Total Allocated（付与）、Total Used（使用済み）、Current Available（残数）の関係を理解する"
+      - "Time Off Balance v2 も存在するため、どちらを使うか確認する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "Time Off Balance標準レポートタイプを選択"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Staff名、Total Allocated、Total Used、Current Available、Current Pendingを列に追加"
+      - step: 3
+        action: "ソート設定"
+        detail: "Current Availableの昇順でソートし、残日数が少ないスタッフを上位に表示"
+    related_scenarios: ["STF-001", "STF-004"]
+    tags: ["有給", "休暇", "残日数", "人事"]
+
+  - id: "STF-004"
+    domain: "staff"
+    title: "経費精算一覧"
+    description: "Timesheet Expense EntryとTimesheet Expense Masterから経費精算状況を確認する"
+    user_story: "経理担当として、スタッフの経費精算状況を確認し、未処理の経費がないか把握したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Timesheet_Expense_Entry__c"
+      related:
+        - object: "MANAERP__Timesheet__c"
+          relation: "MasterDetail (Timesheet Expense Entry → Timesheet)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Timesheet_Expense_Entry__c"
+        related: "MANAERP__Timesheet__c"
+        with_or_without: "with"
+      grouping: ["Contact.Name"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Timesheet Expense EntryはTimesheetとMasterDetail関係"
+      - "Expense Masterとの紐付けで経費カテゴリを確認する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Timesheet Expense Entry、関連: Timesheet (MasterDetail、with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Staff名、経費カテゴリ、金額、日付を列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Staff名でグループ化し、スタッフごとの経費合計を確認"
+    related_scenarios: ["STF-001", "STF-002"]
+    tags: ["経費", "精算", "スタッフ", "経理"]
+
+  # ===== ENR: 入退塾管理 (4 scenarios) =====
+
+  - id: "ENR-001"
+    domain: "student"
+    title: "新規入塾者一覧（月別）"
+    description: "EnrollmentとEnrollment Statusから月別の新規入塾者を一覧表示する"
+    user_story: "校舎管理者として、月別の新規入塾者数を確認し、集客施策の効果を評価したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Enrollment__c"
+      related:
+        - object: "Contact"
+          relation: "MasterDetail (Enrollment → Contact via Student)"
+        - object: "Account"
+          relation: "Lookup (Enrollment → Account via Location)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Enrollment__c.MANAERP__Enrollment_Start_Date__c", "Account.Name"]
+      filters:
+        - field: "MANAERP__Enrollment__c.MANAERP__Enrollment_Status__c"
+          operator: "equals"
+          value: "Enrolled"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Enrollment StatusのPicklist値を事前に確認する"
+      - "Enrollment Start Dateのグループ化単位を「年月」に変更すること"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "Enrollment標準レポートタイプを選択"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Enrollment Status = Enrolled で入塾済みに絞り込み"
+      - step: 3
+        action: "グループ化"
+        detail: "Enrollment Start Date（年月単位）→ Location（校舎）の二段グループ化"
+      - step: 4
+        action: "集計確認"
+        detail: "月別・校舎別の入塾者数を確認"
+    related_scenarios: ["ENR-002", "LES-005"]
+    tags: ["入塾", "新規", "月別", "集客"]
+
+  - id: "ENR-002"
+    domain: "student"
+    title: "退塾者一覧と退塾率"
+    description: "Enrollment StatusからWithdrawn（退塾）のレコードを抽出し、退塾率を分析する"
+    user_story: "校舎管理者として、退塾者の傾向を把握し、退塾防止策を検討したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Enrollment_Status__c"
+      related:
+        - object: "Contact"
+          relation: "MasterDetail (Enrollment Status → Contact via Student)"
+        - object: "Account"
+          relation: "Lookup (Enrollment Status → Account via Location)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Enrollment_Status__c"
+        related: "Contact"
+        with_or_without: "with"
+      grouping: ["Account.Name", "MANAERP__Enrollment_Status__c.MANAERP__Withdrawn_Date__c"]
+      summary_formula: "COUNT(Withdrawn) / COUNT(Total) * 100"
+      filters:
+        - field: "MANAERP__Enrollment_Status__c.MANAERP__Current_Status__c"
+          operator: "equals"
+          value: "Withdrawn"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Current StatusがWithdrawnのレコードのみを対象にする"
+      - "退塾率の分母（全体の在籍者数）は別途計算が必要"
+    concept_explanations:
+      - concept: "report_formula"
+        when_needed: "退塾率を算出する場合。PARENTGROUPVALで親グループの値との比率を計算"
+        analogy: "構成比の計算。校舎全体に対する退塾者の割合を自動算出"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Enrollment Status、関連: Contact (with)を設定"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Current Status = Withdrawn で退塾者のみに絞り込み"
+      - step: 3
+        action: "グループ化"
+        detail: "Location（校舎）→ Withdrawn Date（年月）の二段グループ化"
+      - step: 4
+        action: "集計確認"
+        detail: "校舎別・月別の退塾者数を確認"
+    related_scenarios: ["ENR-001", "ENR-003"]
+    tags: ["退塾", "退塾率", "校舎", "在籍管理"]
+
+  - id: "ENR-003"
+    domain: "student"
+    title: "生徒別受講商品一覧"
+    description: "Student ProductとProductから生徒ごとの受講中の商品を一覧表示する"
+    user_story: "校舎管理者として、各生徒が現在受講している商品（コース）を確認したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Student_Product__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Student Product → Contact via Student)"
+        - object: "MANAERP__Product__c"
+          relation: "Lookup (Student Product → Product via Product Offering)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["Contact.Name"]
+      filters:
+        - field: "MANAERP__Student_Product__c.MANAERP__Is_Active_Or_Future__c"
+          operator: "equals"
+          value: "true"
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Is Active Or Futureチェックボックスで現在有効な受講のみに絞る"
+      - "過去の受講も含めると大量のレコードが表示される"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "Student Product標準レポートタイプを選択"
+      - step: 2
+        action: "フィルタ設定"
+        detail: "Is Active Or Future = true で現在有効・将来の受講に絞り込み"
+      - step: 3
+        action: "表示列の設定"
+        detail: "Student名、Product Description、Start Date、Schedule Status、Location名を列に追加"
+      - step: 4
+        action: "グループ化"
+        detail: "Student名でグループ化し、生徒ごとの受講商品を確認"
+    related_scenarios: ["ENR-001", "BIL-006"]
+    tags: ["受講", "商品", "生徒", "コース"]
+
+  - id: "ENR-004"
+    domain: "student"
+    title: "入塾申込パイプライン"
+    description: "ApplicationのステータスごとにパイプラインビューでSTATUS FLOW→入塾転換を可視化する"
+    user_story: "校舎管理者として、入塾申込の各ステージの件数を把握し、ボトルネックを特定したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Application__c"
+      related:
+        - object: "Contact"
+          relation: "Lookup (Application → Contact)"
+        - object: "Account"
+          relation: "Lookup (Application → Account)"
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Application__c.MANAERP__Status__c"]
+      filters: []
+      bucket_fields: ["MANAERP__Application__c.MANAERP__Status__c"]
+      cross_filter: false
+    pitfalls:
+      - "Applicationのステータスフローを事前に把握する必要がある"
+      - "バケット行でステータスをパイプラインのステージにまとめると見やすい"
+    concept_explanations:
+      - concept: "bucket_field"
+        when_needed: "Applicationの詳細なステータスを「問合せ」「面談済み」「入塾手続中」「入塾確定」等の大分類にまとめたい場合"
+        analogy: "多数のステータスを大きなフェーズにまとめて見やすくする"
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "Application標準レポートタイプを選択"
+      - step: 2
+        action: "バケット行の作成（任意）"
+        detail: "Statusの値をパイプラインステージにグルーピング"
+      - step: 3
+        action: "グループ化"
+        detail: "Status（またはバケット行）でグループ化"
+      - step: 4
+        action: "チャート追加"
+        detail: "横棒グラフでパイプラインの各ステージの件数を可視化"
+        screenshot_hint: "report-pipeline-chart"
+    related_scenarios: ["ENR-001", "LES-005"]
+    tags: ["入塾", "申込", "パイプライン", "Application"]
+
+  # ===== EVT: イベント (3 scenarios) =====
+
+  - id: "EVT-001"
+    domain: "event"
+    title: "イベント参加者一覧"
+    description: "Event MasterとEvent Participantからイベントごとの参加者と出欠を確認する"
+    user_story: "イベント担当者として、各イベントの参加者一覧と出欠状況を確認したい"
+    difficulty: "intermediate"
+    objects:
+      primary: "MANAERP__Event_Participant__c"
+      related:
+        - object: "MANAERP__Event_Master__c"
+          relation: "MasterDetail (Event Participant → Event Master)"
+        - object: "Contact"
+          relation: "Lookup (Event Participant → Contact via Student)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Event_Participant__c"
+        related: "MANAERP__Event_Master__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__Event_Master__c.Name", "MANAERP__Event_Participant__c.MANAERP__Attendance_Status__c"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Event ParticipantのResponseとAttendance Statusは別の概念（申込回答 vs 実際の出欠）"
+      - "Total Participants項目は人数カウントのための項目"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの作成"
+        detail: "主: Event Participant、関連: Event Master (MasterDetail、with)を設定"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Event Master名、Student名、Attendance Status、Response、Start/End Date Timeを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Event Master名 → Attendance Statusの二段グループ化"
+      - step: 4
+        action: "集計確認"
+        detail: "イベントごとの参加者数と出欠内訳を確認"
+    related_scenarios: ["EVT-002", "EVT-003"]
+    tags: ["イベント", "参加者", "出欠"]
+
+  - id: "EVT-002"
+    domain: "event"
+    title: "イベント種別別実施状況"
+    description: "Event MasterのEvent Typeごとにイベントの実施状況を集計する"
+    user_story: "教務責任者として、イベント種別ごとの実施件数と参加者数の傾向を把握したい"
+    difficulty: "basic"
+    objects:
+      primary: "MANAERP__Event_Master__c"
+      related: []
+    sf_features:
+      report_type: "standard"
+      grouping: ["MANAERP__Event_Master__c.MANAERP__Event_Type__c"]
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "Event Typeのpicklist値を事前に確認する"
+    concept_explanations: []
+    steps:
+      - step: 1
+        action: "レポート作成"
+        detail: "Event Master標準レポートタイプを選択"
+      - step: 2
+        action: "表示列の設定"
+        detail: "Event Master名、Event Type、Descriptionを列に追加"
+      - step: 3
+        action: "グループ化"
+        detail: "Event Typeでグループ化し、種別ごとの件数を確認"
+    related_scenarios: ["EVT-001", "EVT-003"]
+    tags: ["イベント", "種別", "実施状況"]
+
+  - id: "EVT-003"
+    domain: "event"
+    title: "イベント別申込・参加転換率"
+    description: "Event ParticipantのResponse（申込回答）とAttendance Status（実際の出欠）を比較し、転換率を確認する"
+    user_story: "イベント担当者として、申込者のうち実際に参加した人の割合を把握し、次回の集客計画に活かしたい"
+    difficulty: "advanced"
+    objects:
+      primary: "MANAERP__Event_Participant__c"
+      related:
+        - object: "MANAERP__Event_Master__c"
+          relation: "MasterDetail (Event Participant → Event Master)"
+    sf_features:
+      report_type: "custom"
+      custom_report_type_definition:
+        primary: "MANAERP__Event_Participant__c"
+        related: "MANAERP__Event_Master__c"
+        with_or_without: "with"
+      grouping: ["MANAERP__Event_Master__c.Name"]
+      summary_formula: "COUNT(Attended) / COUNT(Applied) * 100"
+      filters: []
+      bucket_fields: []
+      cross_filter: false
+    pitfalls:
+      - "ResponseとAttendance Statusの値の対応を正しく理解する"
+      - "転換率の計算には集計数式が必要"
+    concept_explanations:
+      - concept: "report_formula"
+        when_needed: "申込者数に対する参加者数の割合を算出する場合"
+        analogy: "マーケティングのコンバージョン率と同じ考え方"
+    steps:
+      - step: 1
+        action: "カスタムレポートタイプの選択"
+        detail: "EVT-001で作成した「Event Participant with Event Master」レポートタイプを使用"
+      - step: 2
+        action: "グループ化"
+        detail: "Event Master名でグループ化"
+      - step: 3
+        action: "集計数式の追加"
+        detail: "参加者数（Attendance Status = Attended）÷ 申込者数（全レコード数）× 100 で転換率を算出"
+      - step: 4
+        action: "チャート追加"
+        detail: "イベント別の転換率を棒グラフで可視化"
+    related_scenarios: ["EVT-001", "EVT-002"]
+    tags: ["イベント", "転換率", "申込", "参加", "レポート数式"]

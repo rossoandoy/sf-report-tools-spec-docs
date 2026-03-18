@@ -14,7 +14,9 @@
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
     "enrich-schema": "python3 scripts/enrich-schema.py",
-    "validate-schema": "python3 scripts/validate-schema.py"
+    "validate-schema": "python3 scripts/validate-schema.py",
+    "validate-scenarios": "python3 scripts/validate-scenarios.py",
+    "build:site": "bash scripts/build-site.sh"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.9.1",
