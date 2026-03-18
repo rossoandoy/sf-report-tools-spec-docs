@@ -4,7 +4,7 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
-  base: '/',
+  base: '/schema-explorer/',
   resolve: {
     alias: {
       '@sf-report-tools/types': path.resolve(__dirname, '../../shared/types/src/index.ts'),

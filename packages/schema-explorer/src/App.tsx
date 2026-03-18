@@ -6,6 +6,19 @@ import { SearchBar } from './components/SearchBar';
 import { DetailPanel } from './components/DetailPanel';
 import { loadSchema } from '@sf-report-tools/utils';
 
+function NavBar() {
+  return (
+    <nav className="bg-gray-800 text-gray-300 text-sm flex items-center justify-between px-4 py-1.5">
+      <a href="/" className="font-medium text-white">Manabie ERP ツール</a>
+      <div className="flex gap-4">
+        <a href="/schema-explorer/" className="text-white underline">データモデル</a>
+        <a href="/scenario-manual/">シナリオ</a>
+        <a href="/goal-seek/">ゴールシーク</a>
+      </div>
+    </nav>
+  );
+}
+
 function AppContent() {
   const { state, dispatch } = useSchema();
 
@@ -18,16 +31,17 @@ function AppContent() {
   if (!state.schema) {
     return (
       <div className="flex items-center justify-center h-screen text-gray-500">
-        Loading schema...
+        スキーマを読み込み中...
       </div>
     );
   }
 
   return (
     <div className="flex flex-col h-screen">
+      <NavBar />
       {/* Header */}
       <header className="flex items-center gap-4 px-4 py-2 border-b border-gray-200 bg-white shrink-0">
-        <h1 className="text-lg font-bold whitespace-nowrap">Schema Explorer</h1>
+        <h1 className="text-lg font-bold whitespace-nowrap">データモデルビューア</h1>
         <SearchBar />
         <DomainFilter />
       </header>

@@ -5,6 +5,19 @@ import { ScenarioPage } from './pages/ScenarioPage';
 import { ConceptPage } from './pages/ConceptPage';
 import { DecisionTreePage } from './pages/DecisionTreePage';
 
+function NavBar() {
+  return (
+    <nav className="bg-gray-800 text-gray-300 text-sm flex items-center justify-between px-4 py-1.5">
+      <a href="/" className="font-medium text-white">Manabie ERP ツール</a>
+      <div className="flex gap-4">
+        <a href="/schema-explorer/">データモデル</a>
+        <a href="/scenario-manual/" className="text-white underline">シナリオ</a>
+        <a href="/goal-seek/">ゴールシーク</a>
+      </div>
+    </nav>
+  );
+}
+
 function Router() {
   const { path } = useRouter();
   const { loading, error } = useData();
@@ -52,6 +65,7 @@ export function App() {
     <HashRouter>
       <DataProvider>
         <div className="min-h-screen bg-gray-50">
+          <NavBar />
           <Router />
         </div>
       </DataProvider>

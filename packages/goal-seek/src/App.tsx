@@ -11,6 +11,19 @@ import { UploadPage } from './pages/UploadPage';
 import { MatchingPage } from './pages/MatchingPage';
 import { ResultPage } from './pages/ResultPage';
 
+function NavBar() {
+  return (
+    <nav className="bg-gray-800 text-gray-300 text-sm flex items-center justify-between px-4 py-1.5">
+      <a href="/" className="font-medium text-white">Manabie ERP ツール</a>
+      <div className="flex gap-4">
+        <a href="/schema-explorer/">データモデル</a>
+        <a href="/scenario-manual/">シナリオ</a>
+        <a href="/goal-seek/" className="text-white underline">ゴールシーク</a>
+      </div>
+    </nav>
+  );
+}
+
 function SchemaLoader() {
   const dispatch = useGoalSeekDispatch();
 
@@ -47,6 +60,7 @@ export function App() {
     <GoalSeekProvider>
       <SchemaLoader />
       <div className="min-h-screen bg-gray-50">
+        <NavBar />
         <header className="border-b border-gray-200 bg-white">
           <div className="mx-auto max-w-4xl px-4 py-4">
             <h1 className="text-xl font-bold text-gray-900">
